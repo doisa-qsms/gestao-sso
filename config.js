@@ -1,7 +1,6 @@
-// Preencha com os dados do seu projeto Supabase
-// (Project Settings > API: "Project URL" e a chave "anon public").
-// A chave anon é pública por natureza: quem protege os dados é o login e as regras do supabase.sql.
+// Dados do projeto Supabase (Project Settings > API Keys).
+// A chave "publishable" é pública por natureza: quem protege os dados é o login e as regras do supabase.sql.
 window.SST_CONFIG = {
-  supabaseUrl: "",
-  supabaseAnonKey: ""
+  supabaseUrl: "https://yiuflenvmqpjznzmdfez.supabase.co",
+  supabaseAnonKey: "sb_publishable_5AIqezDwLP8yrotNUhEsPA_co1vy06o"
 };

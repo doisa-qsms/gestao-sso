@@ -54,6 +54,13 @@ create policy "admin grava config" on public.config for all    to authenticated 
 drop policy if exists "ve o proprio admin" on public.admins;
 create policy "ve o proprio admin" on public.admins for select to authenticated using (user_id = auth.uid());
 
+-- Permissões de acesso para quem está logado (projetos novos do Supabase não liberam por padrão)
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on public.lancamentos to authenticated;
+grant select, insert, update, delete on public.config to authenticated;
+grant select on public.admins to authenticated;
+grant execute on function public.is_admin() to authenticated;
+
 -- Atualização em tempo real no painel
 do $$ begin
   begin alter publication supabase_realtime add table public.lancamentos; exception when duplicate_object then null; end;
