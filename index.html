@@ -25,6 +25,7 @@
   --s-dds: #eb6834;
   --s-trein: #1baf7a;
   --s-desv: #eda100;
+  --s-outras: #e87ba4;
   --good: #0ca30c;
   --good-ink: #006300;
   --warn: #fab219;
@@ -39,7 +40,7 @@
     --bg: #0f1214; --surface: #1a1d1f; --surface-2: #23272a; --ink: #eef0ed; --ink-2: #c0c4bf;
     --muted: #8a8f8c; --line: #2c3033; --axis: #3a3f42; --accent: #e8ecef; --accent-ink: #111619;
     --hazard: #f2b705; --focus: #f2b705;
-    --s-insp: #3987e5; --s-dds: #d95926; --s-trein: #199e70; --s-desv: #c98500;
+    --s-insp: #3987e5; --s-dds: #d95926; --s-trein: #199e70; --s-desv: #c98500; --s-outras: #d55181;
     --good: #0ca30c; --good-ink: #2fc02f; --warn: #fab219; --crit: #d03b3b; --crit-ink: #ef6a6a;
     color-scheme: dark;
   }
@@ -48,7 +49,7 @@
   --bg: #0f1214; --surface: #1a1d1f; --surface-2: #23272a; --ink: #eef0ed; --ink-2: #c0c4bf;
   --muted: #8a8f8c; --line: #2c3033; --axis: #3a3f42; --accent: #e8ecef; --accent-ink: #111619;
   --hazard: #f2b705; --focus: #f2b705;
-  --s-insp: #3987e5; --s-dds: #d95926; --s-trein: #199e70; --s-desv: #c98500;
+  --s-insp: #3987e5; --s-dds: #d95926; --s-trein: #199e70; --s-desv: #c98500; --s-outras: #d55181;
   --good: #0ca30c; --good-ink: #2fc02f; --warn: #fab219; --crit: #d03b3b; --crit-ink: #ef6a6a;
   color-scheme: dark;
 }
@@ -159,6 +160,13 @@ tfoot td { font-weight: 600; border-bottom: 0; border-top: 2px solid var(--axis)
 .chip.done::before { content: "✓"; color: var(--good-ink); font-weight: 700; }
 .chip.cur { box-shadow: 0 0 0 2px var(--hazard); }
 .groups { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+.groups-title { font-family: var(--font-display); font-size: 15px; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); grid-column: 1 / -1; margin: 8px 0 -6px; }
+.grp.wide { grid-column: span 2; }
+.grp.wide .rows { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.grp.wide .rows .row:nth-child(odd) { border-right: 1px solid var(--line); }
+@media (max-width: 700px) { .grp.wide { grid-column: auto; } .grp.wide .rows { grid-template-columns: minmax(0, 1fr); } .grp.wide .rows .row { border-right: 0 !important; } }
+.grp .sum { padding: 9px 14px; font-size: 12.5px; color: var(--ink-2); background: var(--surface-2); border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.grp .sum b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .grp { border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); overflow: hidden; align-self: start; }
 .grp h3 { font-size: 17px; text-transform: uppercase; padding: 10px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--line); }
 .grp h3 i { width: 10px; height: 10px; border-radius: 2px; }
@@ -272,9 +280,15 @@ html { color-scheme: light; } body { margin: 0; } [hidden] { display: none !impo
     </div>
 
     <div class="panel">
+      <div class="panel-h"><h2>Frentes de serviço</h2><p id="fr-sub">inspeções e desvios por frente no período</p></div>
+      <div class="legend"><span><i style="background:var(--s-insp)"></i>Inspeções</span><span><i style="background:var(--s-desv)"></i>Desvios</span></div>
+      <div class="chart" id="ch-fr"></div>
+    </div>
+
+    <div class="panel">
       <div class="panel-h"><h2>Desempenho por TST</h2><p>Clique numa linha para ver os indicadores individuais.</p></div>
       <div class="tbl"><table id="tbl-tst"></table></div>
-      <p class="note">Desvios abertos = Desvio aperto + Desvio aberto CDV. Fechados = Desvio fechado + Desvio fechado CDV. Taxa de fechamento = fechados ÷ abertos no período. Dias lançados contam os dias úteis (seg–sex) já decorridos no período.</p>
+      <p class="note">Desvios abertos = Desvio aberto + Desvio aberto CDV. Fechados = Desvio fechado + Desvio fechado CDV. Taxa de fechamento = fechados ÷ abertos no período. Desvios por frente são contados à parte e não entram na taxa. Dias lançados contam os dias úteis (seg–sex) já decorridos no período.</p>
     </div>
   </section>
 
@@ -350,11 +364,53 @@ const TSTS = [
 ].map(([k, full]) => { const s = NOME_CURTO[k] || shortName(full); return { k, n: s, short: s }; });
 const TST = Object.fromEntries(TSTS.map(t => [t.k, t]));
 
+/* Grupos dos indicadores e gráficos (cor fixa por grupo) */
 const GROUPS = [
-  { k: "insp", label: "Inspeções e auditorias", short: "Inspeções", color: "--s-insp" },
-  { k: "dds", label: "DDS", short: "DDS", color: "--s-dds" },
+  { k: "insp", label: "Inspeções e verificações", short: "Inspeções", color: "--s-insp" },
+  { k: "dds", label: "DDS e orientações", short: "DDS e orient.", color: "--s-dds" },
   { k: "trein", label: "Treinamentos", short: "Treinamentos", color: "--s-trein" },
   { k: "desv", label: "Desvios", short: "Desvios", color: "--s-desv" },
+  { k: "outras", label: "Controles e registros", short: "Controles", color: "--s-outras" },
+];
+/* Frentes de serviço */
+const FRENTES = [
+  ["civil", "Civil"], ["armacao", "Armação"], ["concretagem", "Concretagem"], ["formas", "Montagem de formas"],
+  ["gabarito", "Montagem de gabarito"], ["graute", "Graute"], ["terraplenagem", "Terraplenagem"], ["drenagem", "Drenagem"],
+  ["prad", "PRAD"], ["supressao", "Supressão"], ["oficina", "Oficina"], ["canteiro", "Canteiro"], ["usina", "Usina"],
+  ["carpintaria", "Carpintaria"], ["posto", "Posto"], ["poco", "Poço de captação"], ["manutencao", "Manutenção"],
+  ["adm", "ADM"], ["icamento", "Içamento de carga"],
+].map(([k, label]) => ({ k, label }));
+/* Seções do formulário de lançamento */
+const SECTIONS = [
+  { k: "g_insp", block: "Atividades gerais", title: "Inspeções e auditorias", color: "--s-insp" },
+  { k: "g_dds", title: "DDS", color: "--s-dds" },
+  { k: "g_trein", title: "Treinamentos", color: "--s-trein" },
+  { k: "g_desv", title: "Desvios", color: "--s-desv" },
+  { k: "fi", block: "Frentes de serviço", title: "Inspeção por frente de serviço", color: "--s-insp", wide: true },
+  { k: "fd", title: "Desvio por frente de serviço", color: "--s-desv", wide: true },
+  { k: "rotina", block: "Rotina de campo", title: "Acompanhamento e controles" },
+  { k: "areas", title: "Inspeções de áreas e itens", color: "--s-insp" },
+  { k: "paralis", title: "Atividades paralisadas", color: "--s-outras" },
+];
+const NEW_ACTS = [
+  ...FRENTES.map(f => ["fi_" + f.k, f.label, "insp", "fi", "Insp. frente · " + f.label]),
+  ...FRENTES.map(f => ["fd_" + f.k, f.label, "desv", "fd", "Desvio frente · " + f.label]),
+  ["acomp_criticas", "Acompanhamento de atividades críticas", "outras", "rotina"],
+  ["orientacoes", "Orientações de segurança", "dds", "rotina"],
+  ["dds_lider", "DDS realizado pelo líder", "dds", "rotina"],
+  ["loto", "Verificação do LOTO", "insp", "rotina"],
+  ["teste_radio", "Realização de teste de rádio", "outras", "rotina"],
+  ["relatorios", "Relatórios elaborados", "outras", "rotina"],
+  ["regra_ouro", "Indicações de regra de ouro", "outras", "rotina"],
+  ["insp_alojamento", "Inspeção de alojamento", "insp", "areas"],
+  ["insp_cozinha", "Inspeção em cozinha", "insp", "areas"],
+  ["insp_refeitorio", "Inspeção no refeitório", "insp", "areas"],
+  ["insp_canteiro", "Inspeção no canteiro", "insp", "areas"],
+  ["insp_epi", "Inspeção de EPI", "insp", "areas"],
+  ["insp_sinalizacao", "Inspeção e sinalização", "insp", "areas"],
+  ["insp_acess_icamento", "Inspeção em acessório de içamento", "insp", "areas"],
+  ["paralis_cliente", "Paralisadas pelo cliente", "outras", "paralis", "Ativ. paralisadas pelo cliente"],
+  ["paralis_interno", "Paralisadas internamente", "outras", "paralis", "Ativ. paralisadas internamente"],
 ];
 const ACTS = [
   ["insp_vivencia", "Inspeção em área de vivência", "insp"],
@@ -372,14 +428,16 @@ const ACTS = [
   ["audicomp", "AUDICOMP", "insp"],
   ["dds", "DDS realizados", "dds"],
   ["treinamentos", "Treinamentos realizados", "trein"],
-  ["desvio_aperto", "Desvio aperto", "desv"],
+  ["desvio_aperto", "Desvio aberto", "desv"],
   ["desvio_aberto_cdv", "Desvio aberto CDV", "desv"],
   ["desvio_fechado", "Desvio fechado", "desv"],
   ["desvio_fechado_cdv", "Desvio fechado CDV", "desv"],
-].map(([k, label, g]) => ({ k, label, g }));
+].map(([k, label, g]) => [k, label, g, "g_" + g]).concat(NEW_ACTS)
+ .map(([k, label, g, s, full]) => ({ k, label, g, s, full: full || label }));
 const ABERTOS = ["desvio_aperto", "desvio_aberto_cdv"];
 const FECHADOS = ["desvio_fechado", "desvio_fechado_cdv"];
-const META_ACTS = ACTS.filter(a => a.g !== "desv");
+const PARALIS = ["paralis_cliente", "paralis_interno"];
+const META_ACTS = ACTS.filter(a => a.g !== "desv" && a.s !== "paralis");
 
 function shortName(n) {
   const p = n.split(" ").filter(w => !["DE","DA","DO","DOS","DAS"].includes(w));
@@ -442,7 +500,7 @@ function docsIn(from, to, tst) {
   return out;
 }
 function agg(list) {
-  const a = { total: 0, by: {}, grp: { insp: 0, dds: 0, trein: 0, desv: 0 }, abertos: 0, fechados: 0, dias: new Set(), n: list.length };
+  const a = { total: 0, by: {}, grp: Object.fromEntries(GROUPS.map(g => [g.k, 0])), abertos: 0, fechados: 0, dias: new Set(), n: list.length };
   for (const x of ACTS) a.by[x.k] = 0;
   for (const d of list) {
     const v = d.v || {};
@@ -452,6 +510,10 @@ function agg(list) {
   a.abertos = ABERTOS.reduce((s, k) => s + a.by[k], 0);
   a.fechados = FECHADOS.reduce((s, k) => s + a.by[k], 0);
   a.prod = a.total - a.grp.desv; // atividades com meta (sem desvios)
+  a.fi = FRENTES.reduce((s, f) => s + a.by["fi_" + f.k], 0);
+  a.fd = FRENTES.reduce((s, f) => s + a.by["fd_" + f.k], 0);
+  a.frentesCob = FRENTES.filter(f => a.by["fi_" + f.k] > 0).length;
+  a.paralis = PARALIS.reduce((s, k) => s + a.by[k], 0);
   return a;
 }
 function elapsedBusinessDays(from, to) { const t = today(); const end = to < t ? to : t; return end < from ? 0 : businessDays(from, end); }
@@ -500,9 +562,14 @@ function renderPainel() {
   const dot = g => `<i class="dot" style="background:var(${GROUPS.find(x => x.k === g).color})"></i>`;
   const tiles = [
     { l: "Total de atividades", v: fmt(a.total), s: deltaHtml(a.total, b.total) },
-    { l: dot("insp") + "Inspeções e auditorias", v: fmt(a.grp.insp), s: metaLine(a, meta, "insp") },
-    { l: dot("dds") + "DDS", v: fmt(a.grp.dds), s: metaLine(a, meta, "dds") },
+    { l: dot("insp") + "Inspeções e verificações", v: fmt(a.grp.insp), s: metaLine(a, meta, "insp") },
+    { l: dot("dds") + "DDS e orientações", v: fmt(a.grp.dds), s: metaLine(a, meta, "dds") },
     { l: dot("trein") + "Treinamentos", v: fmt(a.grp.trein), s: metaLine(a, meta, "trein") },
+    { l: dot("outras") + "Controles e registros", v: fmt(a.grp.outras), s: `acomp. críticas, LOTO, rádio, relatórios, regra de ouro` },
+    { l: dot("insp") + "Frentes inspecionadas", v: `${a.frentesCob}<span style="font-size:20px;color:var(--muted)"> / ${FRENTES.length}</span>`,
+      s: `${fmt(a.fi)} inspeç${a.fi === 1 ? "ão" : "ões"} nas frentes no período` },
+    { l: dot("desv") + "Desvios por frente", v: fmt(a.fd), s: (() => { const top = FRENTES.map(fr => [fr.label, a.by["fd_" + fr.k]]).sort((x, y) => y[1] - x[1])[0]; return top && top[1] ? `mais desvios: ${esc(top[0])} (${fmt(top[1])})` : `nenhum desvio por frente`; })() },
+    { l: dot("outras") + "Atividades paralisadas", v: fmt(a.paralis), s: `cliente ${fmt(a.by.paralis_cliente)} · interno ${fmt(a.by.paralis_interno)}` },
     { l: dot("desv") + "Desvios abertos / fechados", v: `${fmt(a.abertos)} <span style="color:var(--muted)">/</span> ${fmt(a.fechados)}`,
       s: `<span class="pill ${statusOf(tx, .8, .5)}"><i></i>${tx == null ? "Sem desvios abertos" : "Fechamento " + pct(tx)}</span>` },
     { l: "Dias com lançamento", v: f === "equipe" ? pct(assid) : `${diasL}<span style="font-size:20px;color:var(--muted)"> / ${ebd}</span>`,
@@ -516,6 +583,7 @@ function renderPainel() {
   $("#dash-empty").hidden = !(empty && S.loaded);
   $("#act-sub").textContent = (f === "equipe" ? "Equipe" : TST[f].short) + " · " + periodLabel();
   renderActChart(a, meta);
+  renderFrenteChart(a);
   renderDayChart(from, to, f);
   renderWeekChart(f);
   renderTstTable(from, to, p);
@@ -544,9 +612,11 @@ function roundTopRect(x, y, w, h, r) { if (h <= 0) return ""; r = Math.min(r, h,
 function roundRightRect(x, y, w, h, r) { if (w <= 0) return ""; r = Math.min(r, w, h / 2); return `M${x},${y}H${x + w - r}Q${x + w},${y} ${x + w},${y + r}V${y + h - r}Q${x + w},${y + h} ${x + w - r},${y + h}H${x}Z`; }
 
 function renderActChart(a, meta) {
-  const rows = ACTS.map(x => ({ ...x, v: a.by[x.k], m: meta.by[x.k] || 0 }))
+  const rows = ACTS.filter(x => x.s !== "fi" && x.s !== "fd").map(x => ({ ...x, label: x.full, v: a.by[x.k], m: meta.by[x.k] || 0 }))
+    .filter(r => r.v > 0 || r.m > 0)
     .sort((p, q) => q.v - p.v || GROUPS.findIndex(g => g.k === p.g) - GROUPS.findIndex(g => g.k === q.g));
-  const W = 560, L = 190, R = 44, rowH = 22, T = 6, H = T + rows.length * rowH + 22;
+  if (!rows.length) { $("#ch-act").innerHTML = `<p class="note">Nenhuma atividade lançada neste período. Os tipos com lançamento aparecem aqui, do maior para o menor. Frentes de serviço têm gráfico próprio abaixo.</p>`; return; }
+  const W = 600, L = 236, R = 44, rowH = 22, T = 6, H = T + rows.length * rowH + 22;
   const max = niceMax(Math.max(1, ...rows.map(r => Math.max(r.v, r.m))));
   const x = v => L + (W - L - R) * v / max;
   let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Atividades por tipo">`;
@@ -564,6 +634,27 @@ function renderActChart(a, meta) {
   s += `<line class="base" x1="${L}" x2="${L}" y1="${T}" y2="${H - 20}"/></svg>`;
   const el = $("#ch-act"); el.innerHTML = s + (Object.keys(meta.by).length ? `<div class="legend" style="margin-top:6px"><span><i style="background:var(--ink);width:2px;height:12px"></i>Meta do período</span></div>` : "");
   bindTips(el);
+}
+
+function renderFrenteChart(a) {
+  const rows = FRENTES.map(fr => ({ ...fr, i: a.by["fi_" + fr.k], d: a.by["fd_" + fr.k] }));
+  $("#fr-sub").textContent = `${a.frentesCob} de ${FRENTES.length} frentes inspecionadas · ${fmt(a.fi)} inspeções · ${fmt(a.fd)} desvios`;
+  const W = 600, L = 150, R = 40, rowH = 30, T = 6, H = T + rows.length * rowH + 22, bh = 9;
+  const max = niceMax(Math.max(1, ...rows.map(r => Math.max(r.i, r.d))));
+  const x = v => L + (W - L - R) * v / max;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Inspeções e desvios por frente de serviço">`;
+  s += `<g class="grid">`; for (let i = 0; i <= 4; i++) { const v = max * i / 4, X = x(v); s += `<line x1="${X}" x2="${X}" y1="${T}" y2="${H - 20}"/><text x="${X}" y="${H - 6}" text-anchor="middle">${fmt(v)}</text>`; } s += `</g>`;
+  rows.forEach((r, i) => {
+    const y = T + i * rowH, y1 = y + 5, y2 = y1 + bh + 2;
+    const t = `<b>${esc(r.label)}</b><div class="r"><span>Inspeções</span><span>${fmt(r.i)}</span></div><div class="r"><span>Desvios</span><span>${fmt(r.d)}</span></div>`;
+    s += `<g class="col" data-tip="${esc(t)}"><rect class="hit" x="0" y="${y}" width="${W}" height="${rowH}"/>`;
+    s += `<text x="${L - 8}" y="${y + rowH / 2 + 4}" text-anchor="end"${r.i || r.d ? ' class="v"' : ""}>${esc(r.label)}</text>`;
+    if (r.i) s += `<path d="${roundRightRect(L, y1, x(r.i) - L, bh, 3)}" fill="var(--s-insp)"/><text class="v" x="${x(r.i) + 5}" y="${y1 + bh - 1}" style="font-size:10px">${fmt(r.i)}</text>`;
+    if (r.d) s += `<path d="${roundRightRect(L, y2, x(r.d) - L, bh, 3)}" fill="var(--s-desv)"/><text class="v" x="${x(r.d) + 5}" y="${y2 + bh - 1}" style="font-size:10px">${fmt(r.d)}</text>`;
+    s += `</g>`;
+  });
+  s += `<line class="base" x1="${L}" x2="${L}" y1="${T}" y2="${H - 20}"/></svg>`;
+  const el = $("#ch-fr"); el.innerHTML = s; bindTips(el);
 }
 
 function renderDayChart(from, to, f) {
@@ -635,17 +726,17 @@ function renderTstTable(from, to, p) {
   const totAtt = metaAttain(tot, metaFor(TSTS.length, from, to));
   const dv = (c, pv) => { if (!pv) return `<span class="delta flat">—</span>`; const d = (c - pv) / pv; const cls = Math.abs(d) < .005 ? "flat" : d > 0 ? "up" : "down"; return `<span class="delta ${cls}">${cls === "up" ? "▲" : cls === "down" ? "▼" : "■"} ${Math.abs(Math.round(d * 100))}%</span>`; };
   const pill = (x, g, w, txt) => { const st = statusOf(x, g, w); return x == null ? `<span style="color:var(--muted)">—</span>` : `<span class="pill ${st}"><i></i>${txt ?? pct(x)}</span>`; };
-  let h = `<thead><tr><th>TST</th><th>Total</th><th>Δ anterior</th><th>Inspeções</th><th>DDS</th><th>Trein.</th><th>Desv. abertos</th><th>Desv. fechados</th><th>Taxa fech.</th><th>Dias lançados</th><th>Meta</th></tr></thead><tbody>`;
+  let h = `<thead><tr><th>TST</th><th>Total</th><th>Δ anterior</th><th>Inspeções</th><th>DDS</th><th>Trein.</th><th>Frentes insp.</th><th>Desv. frente</th><th>Paralis.</th><th>Desv. abertos</th><th>Desv. fechados</th><th>Taxa fech.</th><th>Dias lançados</th><th>Meta</th></tr></thead><tbody>`;
   rows.sort((x, y) => y.a.total - x.a.total).forEach(r => {
     h += `<tr data-k="${r.t.k}" class="${S.filtro === r.t.k ? "sel" : ""}"><td>${esc(r.t.short)}</td>
       <td><span class="bar-cell"><span class="minibar"><b style="width:${100 * r.a.total / maxT}%"></b></span>${fmt(r.a.total)}</span></td>
-      <td>${dv(r.a.total, r.b.total)}</td><td>${fmt(r.a.grp.insp)}</td><td>${fmt(r.a.grp.dds)}</td><td>${fmt(r.a.grp.trein)}</td>
+      <td>${dv(r.a.total, r.b.total)}</td><td>${fmt(r.a.grp.insp)}</td><td>${fmt(r.a.grp.dds)}</td><td>${fmt(r.a.grp.trein)}</td><td>${r.a.frentesCob}/${FRENTES.length}</td><td>${fmt(r.a.fd)}</td><td>${fmt(r.a.paralis)}</td>
       <td>${fmt(r.a.abertos)}</td><td>${fmt(r.a.fechados)}</td><td>${pill(r.tx, .8, .5)}</td>
       <td>${pill(ebd ? r.dias / ebd : null, .95, .7, `${r.dias}/${ebd}`)}</td><td>${pill(r.att, 1, .8)}</td></tr>`;
   });
   const tx = tot.abertos ? tot.fechados / tot.abertos : null;
   const dTot = rows.reduce((s, r) => s + r.dias, 0);
-  h += `</tbody><tfoot><tr><td>Equipe (${TSTS.length} TSTs)</td><td>${fmt(tot.total)}</td><td>${dv(tot.total, totB.total)}</td><td>${fmt(tot.grp.insp)}</td><td>${fmt(tot.grp.dds)}</td><td>${fmt(tot.grp.trein)}</td><td>${fmt(tot.abertos)}</td><td>${fmt(tot.fechados)}</td><td>${pill(tx, .8, .5)}</td><td>${pill(ebd ? dTot / (ebd * TSTS.length) : null, .95, .7)}</td><td>${pill(totAtt, 1, .8)}</td></tr></tfoot>`;
+  h += `</tbody><tfoot><tr><td>Equipe (${TSTS.length} TSTs)</td><td>${fmt(tot.total)}</td><td>${dv(tot.total, totB.total)}</td><td>${fmt(tot.grp.insp)}</td><td>${fmt(tot.grp.dds)}</td><td>${fmt(tot.grp.trein)}</td><td>${tot.frentesCob}/${FRENTES.length}</td><td>${fmt(tot.fd)}</td><td>${fmt(tot.paralis)}</td><td>${fmt(tot.abertos)}</td><td>${fmt(tot.fechados)}</td><td>${pill(tx, .8, .5)}</td><td>${pill(ebd ? dTot / (ebd * TSTS.length) : null, .95, .7)}</td><td>${pill(totAtt, 1, .8)}</td></tr></tfoot>`;
   const el = $("#tbl-tst"); el.innerHTML = h;
   el.querySelectorAll("tbody tr").forEach(tr => tr.addEventListener("click", () => { S.filtro = S.filtro === tr.dataset.k ? "equipe" : tr.dataset.k; $("#filtro").value = S.filtro; renderAll(); }));
 }
@@ -656,13 +747,13 @@ function renderRegistros() {
   const { from, to } = periodRange();
   const list = docsIn(from, to, S.filtro).sort((a, b) => b.data.localeCompare(a.data) || (TST[a.tst]?.short || "").localeCompare(TST[b.tst]?.short || ""));
   $("#reg-empty").hidden = list.length > 0; $("#tbl-reg").hidden = !list.length;
-  let h = `<thead><tr><th>Data</th><th>TST</th><th>Total</th><th>Inspeções</th><th>DDS</th><th>Trein.</th><th>Desv. abertos</th><th>Desv. fechados</th><th style="text-align:left">Observações</th><th></th></tr></thead><tbody>`;
+  let h = `<thead><tr><th>Data</th><th>TST</th><th>Total</th><th>Inspeções</th><th>DDS</th><th>Trein.</th><th>Frentes insp.</th><th>Desv. frente</th><th>Paralis.</th><th>Desv. abertos</th><th>Desv. fechados</th><th style="text-align:left">Observações</th><th></th></tr></thead><tbody>`;
   for (const d of list) {
     const a = agg([d]); const id = docId(d.data, d.tst);
     const del = pendingDel === id
       ? `<span class="confirm"><button class="btn danger" data-delok="${id}" style="padding:4px 10px">Excluir</button><button class="btn ghost" data-delno style="padding:4px 10px">Cancelar</button></span>`
       : `<button class="btn ghost" data-edit="${id}" style="padding:4px 10px">Editar</button> <button class="btn ghost" data-del="${id}" style="padding:4px 10px">Excluir</button>`;
-    h += `<tr><td>${DSEM[parse(d.data).getDay()]} ${dm(parse(d.data))}</td><td>${esc(TST[d.tst]?.short || d.nome || d.tst)}</td><td>${fmt(a.total)}</td><td>${fmt(a.grp.insp)}</td><td>${fmt(a.grp.dds)}</td><td>${fmt(a.grp.trein)}</td><td>${fmt(a.abertos)}</td><td>${fmt(a.fechados)}</td><td style="text-align:left;white-space:normal;min-width:180px;max-width:320px">${esc(d.obs || "")}</td><td>${S.canWrite === false ? "" : del}</td></tr>`;
+    h += `<tr><td>${DSEM[parse(d.data).getDay()]} ${dm(parse(d.data))}</td><td>${esc(TST[d.tst]?.short || d.nome || d.tst)}</td><td>${fmt(a.total)}</td><td>${fmt(a.grp.insp)}</td><td>${fmt(a.grp.dds)}</td><td>${fmt(a.grp.trein)}</td><td>${a.frentesCob}</td><td>${fmt(a.fd)}</td><td>${fmt(a.paralis)}</td><td>${fmt(a.abertos)}</td><td>${fmt(a.fechados)}</td><td style="text-align:left;white-space:normal;min-width:180px;max-width:320px">${esc(d.obs || "")}</td><td>${S.canWrite === false ? "" : del}</td></tr>`;
   }
   const el = $("#tbl-reg"); el.innerHTML = h + "</tbody>";
   el.querySelectorAll("tbody tr").forEach(tr => tr.style.cursor = "default");
@@ -724,8 +815,10 @@ function buildEntry() {
   $("#f-tst").innerHTML = TSTS.map(t => `<option value="${t.k}">${esc(t.n)}</option>`).join("");
   const last = store.get("sst.tst"); if (last && TST[last]) $("#f-tst").value = last;
   $("#f-data").value = ymd(today());
-  $("#groups").innerHTML = GROUPS.map(g => `<div class="grp"><h3><i style="background:var(${g.color})"></i>${g.label}<small id="gt-${g.k}">0</small></h3>` +
-    ACTS.filter(a => a.g === g.k).map(a => `<div class="row" id="row-${a.k}"><label for="in-${a.k}">${a.label}</label><span class="counter"><button type="button" data-dec="${a.k}" aria-label="Diminuir ${a.label}">−</button><input id="in-${a.k}" type="number" min="0" step="1" inputmode="numeric" value="0"><button type="button" data-inc="${a.k}" aria-label="Aumentar ${a.label}">+</button></span></div>`).join("") + `</div>`).join("");
+  $("#groups").innerHTML = SECTIONS.map(sec => (sec.block ? `<div class="groups-title">${sec.block}</div>` : "") +
+    `<div class="grp${sec.wide ? " wide" : ""}"><h3>${sec.color ? `<i style="background:var(${sec.color})"></i>` : ""}${sec.title}<small id="gt-${sec.k}">0</small></h3><div class="rows">` +
+    ACTS.filter(a => a.s === sec.k).map(a => `<div class="row" id="row-${a.k}"><label for="in-${a.k}">${a.label}</label><span class="counter"><button type="button" data-dec="${a.k}" aria-label="Diminuir ${esc(a.full)}">−</button><input id="in-${a.k}" type="number" min="0" step="1" inputmode="numeric" value="0"><button type="button" data-inc="${a.k}" aria-label="Aumentar ${esc(a.full)}">+</button></span></div>`).join("") +
+    `</div>${sec.k === "fi" || sec.k === "fd" ? `<div class="sum" id="sum-${sec.k}"></div>` : ""}</div>`).join("");
   $("#groups").addEventListener("click", e => {
     const k = e.target.dataset.inc || e.target.dataset.dec; if (!k) return;
     const inp = $("#in-" + k); inp.value = Math.max(0, (parseInt(inp.value) || 0) + (e.target.dataset.inc ? 1 : -1)); onFormInput();
@@ -740,7 +833,11 @@ function buildEntry() {
 function readForm() { const v = {}; for (const a of ACTS) v[a.k] = Math.max(0, Math.floor(Number($("#in-" + a.k).value) || 0)); return v; }
 function onFormInput() {
   formDirty = true; const v = readForm(); let t = 0;
-  for (const g of GROUPS) { let s = 0; for (const a of ACTS) if (a.g === g.k) { s += v[a.k]; $("#row-" + a.k).classList.toggle("has", v[a.k] > 0); } $("#gt-" + g.k).textContent = s; t += s; }
+  for (const sec of SECTIONS) { let s = 0; for (const a of ACTS) if (a.s === sec.k) { s += v[a.k]; $("#row-" + a.k).classList.toggle("has", v[a.k] > 0); } $("#gt-" + sec.k).textContent = s; t += s; }
+  const nFi = FRENTES.filter(f => v["fi_" + f.k] > 0).length, sFi = FRENTES.reduce((s, f) => s + v["fi_" + f.k], 0);
+  const nFd = FRENTES.filter(f => v["fd_" + f.k] > 0).length, sFd = FRENTES.reduce((s, f) => s + v["fd_" + f.k], 0);
+  $("#sum-fi").innerHTML = `<span>Total de frentes de serviço inspecionadas: <b>${nFi}</b> de ${FRENTES.length}</span><span>Inspeções nas frentes: <b>${sFi}</b></span>`;
+  $("#sum-fd").innerHTML = `<span>Total de desvios por frente de serviço: <b>${sFd}</b></span><span>Frentes com desvio: <b>${nFd}</b></span>`;
   $("#f-tot").textContent = fmt(t); $("#f-msg").textContent = "Alterações não salvas"; $("#f-msg").className = "msg";
 }
 function fillForm(d) {
@@ -795,8 +892,8 @@ async function saveEntry() {
 
 /* ---------- metas ---------- */
 function buildMetas() {
-  $("#metas-form").innerHTML = GROUPS.filter(g => g.k !== "desv").map(g => `<div><h3 style="font-size:17px;text-transform:uppercase;margin:12px 0 4px;display:flex;gap:8px;align-items:center"><i style="width:10px;height:10px;border-radius:2px;background:var(${g.color})"></i>${g.label}</h3>` +
-    META_ACTS.filter(a => a.g === g.k).map(a => `<div class="row" style="padding-left:0"><label for="mt-${a.k}">${a.label}</label><input id="mt-${a.k}" type="number" min="0" step="1" inputmode="numeric" placeholder="—" style="width:84px;text-align:right"></div>`).join("") + `</div>`).join("");
+  $("#metas-form").innerHTML = SECTIONS.filter(sec => META_ACTS.some(a => a.s === sec.k)).map(sec => `<div><h3 style="font-size:17px;text-transform:uppercase;margin:12px 0 4px;display:flex;gap:8px;align-items:center">${sec.color ? `<i style="width:10px;height:10px;border-radius:2px;background:var(${sec.color})"></i>` : ""}${sec.title}</h3>` +
+    META_ACTS.filter(a => a.s === sec.k).map(a => `<div class="row" style="padding-left:0"><label for="mt-${a.k}">${a.label}</label><input id="mt-${a.k}" type="number" min="0" step="1" inputmode="numeric" placeholder="—" style="width:84px;text-align:right"></div>`).join("") + `</div>`).join("");
   $("#metas-save").onclick = async () => {
     const m = {}; for (const a of META_ACTS) { const v = $("#mt-" + a.k).value; if (v !== "" && Number(v) > 0) m[a.k] = Math.floor(Number(v)); }
     $("#metas-msg").textContent = "Salvando…"; $("#metas-msg").className = "msg";
@@ -818,7 +915,7 @@ function fillMetas() {
 async function exportCsv() {
   const { from, to } = periodRange();
   const list = docsIn(from, to, S.filtro).sort((a, b) => a.data.localeCompare(b.data));
-  const head = ["Data", "TST", ...ACTS.map(a => a.label), "Total", "Observações"];
+  const head = ["Data", "TST", ...ACTS.map(a => a.full), "Total", "Observações"];
   const q = s => `"${String(s ?? "").replace(/"/g, '""')}"`;
   const lines = [head.map(q).join(";"), ...list.map(d => [d.data.split("-").reverse().join("/"), TST[d.tst]?.n || d.nome, ...ACTS.map(a => Number(d.v?.[a.k]) || 0), d.total ?? agg([d]).total, d.obs || ""].map((v, i) => typeof v === "number" ? v : q(v)).join(";"))];
   const csv = "﻿" + lines.join("\r\n");
