@@ -349,17 +349,18 @@ html { color-scheme: light; } body { margin: 0; } [hidden] { display: none !impo
 <script>
 (() => {
 "use strict";
-const NOME_CURTO = { "joao-gabriel": "João Gabriel", "maria-suzanny": "Maria Suzanny" };
+const NOME_CURTO = { "joao-gabriel": "João Gabriel", "joao-pompeu": "João Pompeu", "maria-suzanny": "Maria Suzanny" };
 const TSTS = [
   ["elizio", "ELIZIO COSTA DO NASCIMENTO"],
-  ["flavio", "FLAVIO BARBOSA DA SILVA"],
   ["joao-gabriel", "JOAO GABRIEL PINHEIRO FAGUNDES"],
+  ["joao-pompeu", "JOAO POMPEU"],
   ["juliete", "JULIETE TACILA NOGUEIRA DA SILVA GONÇALVES"],
   ["lisianne", "LISIANNE DE SOUZA ALVES"],
   ["maria-suzanny", "MARIA SUZANNY DA SILVA"],
   ["norberto", "NORBERTO ALEIXO DA COSTA JUNIOR"],
   ["raimundo", "RAIMUNDO EDSON NEVES DA SILVA JUNIOR"],
   ["rayssa", "RAYSSA DE SOUZA CAVALCANTE"],
+  ["richardson", "RICHARDSON OLIVEIRA"],
   ["wagner", "WAGNER FREIRE DOS SANTOS"],
 ].map(([k, full]) => { const s = NOME_CURTO[k] || shortName(full); return { k, n: s, short: s }; });
 const TST = Object.fromEntries(TSTS.map(t => [t.k, t]));
